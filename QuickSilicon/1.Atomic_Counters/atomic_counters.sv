@@ -16,6 +16,7 @@ module atomic_counters (
  always_ff @(posedge clk or posedge reset) begin : COUNTER
      if(reset) count_q <= 64'h0;
      else if (trig_i) count_q <= count_q + 64'h1;
+     //else count_q = count_q + {{63{1'b0}}, trig_i};
  end
 
 always_ff @(posedge clk or posedge reset) begin : COUNTER_MSB_REG
