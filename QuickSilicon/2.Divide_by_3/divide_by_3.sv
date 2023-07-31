@@ -1,5 +1,3 @@
-// Example DFA (Deterministic Finite Automata)
-
 module divide_by_3 (
     input   logic     clk,
     input   logic     reset,
