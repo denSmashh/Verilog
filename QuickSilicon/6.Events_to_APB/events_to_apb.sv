@@ -21,6 +21,7 @@ logic [31:0] event_a_cnt;
 logic [31:0] event_b_cnt;
 logic [31:0] event_c_cnt;
 
+logic write_req;
 logic write_transaction;
 event_t req_event;
 
@@ -43,37 +44,41 @@ always_ff @(posedge clk or posedge reset) begin : EVENT_C_COUNTER
 end
 
 always_ff @(posedge clk or posedge reset) begin : DETECT_REQ
+    if (reset) write_req <= 'b0;
+    else if (apb_pready_i) write_req <= 'b0;
+    else if (event_a_i | event_b_i | event_c_i) write_req <= 'b1;
+    else ;
+end
+
+always_ff @(posedge clk or posedge reset) begin : WRITE_TRAN
     if (reset) write_transaction <= 'b0;
     else if (apb_pready_i) write_transaction <= 'b0;
-    else if (event_a_i | event_b_i | event_c_i) write_transaction <= 'b1;
+    else if (write_req) write_transaction <= 'b1;
     else ;
 end
 
 always_ff @(posedge clk or posedge reset) begin : DETECT_EVENT
     if (reset) req_event <= NO_EVENT;
     else begin
-        if(write_transaction) begin
-            if(event_a_i) req_event <= EVENT_A;
-            else if(event_b_i) req_event <= EVENT_B;
-            else if(event_c_i) req_event <= EVENT_C;
-            else ;
-        end
+        if(event_a_i) req_event <= EVENT_A;
+        else if(event_b_i) req_event <= EVENT_B;
+        else if(event_c_i) req_event <= EVENT_C;
         else req_event <= NO_EVENT;
     end
 end
 
 assign apb_pwrite_o = 1'b1;   // only write transaction
 
-assign apb_psel_o = (write_transaction) ? 'b1 : 'b0;
+assign apb_psel_o = (write_req) ? 'b1 : 'b0;
 
-assign apb_penable_o = (req_event != NO_EVENT) ? 'b1 : 'b0;
+assign apb_penable_o = (write_transaction) ? 'b1 : 'b0;
 
-assign apb_paddr_o = (req_event == EVENT_A) ? 32'hABBA0000 :
-                     (req_event == EVENT_B) ? 32'hBAFF0000 :
-                     (req_event == EVENT_C) ? 32'hCAFE0000 : 32'b0;
+assign apb_paddr_o = (write_transaction && req_event == EVENT_A) ? 32'hABBA0000 :
+                     (write_transaction && req_event == EVENT_B) ? 32'hBAFF0000 :
+                     (write_transaction && req_event == EVENT_C) ? 32'hCAFE0000 : 32'b0;
 
-assign apb_pwdata_o = (req_event == EVENT_A) ? event_a_cnt :
-                      (req_event == EVENT_B) ? event_b_cnt :
-                      (req_event == EVENT_C) ? event_c_cnt : 32'b0;
+assign apb_pwdata_o = (write_transaction && req_event == EVENT_A) ? event_a_cnt :
+                      (write_transaction && req_event == EVENT_B) ? event_b_cnt :
+                      (write_transaction && req_event == EVENT_C) ? event_c_cnt : 32'b0;
 
 endmodule
